@@ -53,7 +53,7 @@ class Editor extends Component {
       });
 
     const create = mouseDown
-      .filter(({ target }) => target.matches(".Editor"))
+      .filter(({ target }) => target.matches(".Editor__svg"))
       .map(ev => [ev.pageX, ev.pageY])
       .chain(p1 => {
         const index = this.state.lines.length;
@@ -89,49 +89,53 @@ class Editor extends Component {
     const { lines, activeElement } = this.state;
 
     return (
-      <svg ref="root" className={b()}>
-        {lines.map(
-          ([p1, p2], i) =>
-            i !== activeElement ? (
-              <line
-                key={i}
-                data-line-index={i}
-                className={b("line")}
-                x1={p1[0]}
-                x2={p2[0]}
-                y1={p1[1]}
-                y2={p2[1]}
-              />
-            ) : (
-              <g key={i}>
+      <div className={b()}>
+        {lines.length === 0 && <span className={b("greeting")}>click + drag to start edit</span>}
+        <svg ref="root" className={b("svg")}>
+          {lines.map(
+            ([p1, p2], i) =>
+              i !== activeElement ? (
                 <line
+                  key={i}
                   data-line-index={i}
-                  className={b("line", ["active"])}
+                  className={b("line")}
                   x1={p1[0]}
                   x2={p2[0]}
                   y1={p1[1]}
                   y2={p2[1]}
                 />
-                <circle
-                  data-line-index={i}
-                  data-point-index={0}
-                  className={b("point")}
-                  cx={p1[0]}
-                  cy={p1[1]}
-                  r={4}
-                />
-                <circle
-                  data-line-index={i}
-                  data-point-index={1}
-                  className={b("point")}
-                  cx={p2[0]}
-                  cy={p2[1]}
-                  r={4}
-                />
-              </g>
-            )
-        )}
-      </svg>
+              ) : (
+                <g key={i}>
+                  <line
+                    data-line-index={i}
+                    className={b("line", ["active"])}
+                    x1={p1[0]}
+                    x2={p2[0]}
+                    y1={p1[1]}
+                    y2={p2[1]}
+                  />
+                  <circle
+                    data-line-index={i}
+                    data-point-index={0}
+                    className={b("point")}
+                    cx={p1[0]}
+                    cy={p1[1]}
+                    r={4}
+                  />
+                  <circle
+                    data-line-index={i}
+                    data-point-index={1}
+                    className={b("point")}
+                    cx={p2[0]}
+                    cy={p2[1]}
+                    r={4}
+                  />
+                </g>
+              )
+          )}
+        </svg>
+      </div>
+
     );
   }
 }
