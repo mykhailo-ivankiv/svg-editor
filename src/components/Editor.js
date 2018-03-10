@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { fromEvent } from "most";
+import { fromEvent, merge } from "most";
 
 import "../styles/Editor.less";
 import block from "../helpers/BEM";
@@ -28,13 +28,33 @@ class Editor extends Component {
 
     click
       .filter(({ target }) => target.matches(".Editor__line"))
-      .map(({ target }) => target)
-      .map(({ dataset }) => dataset.index)
+      .map(({ target }) => Number(target.dataset.lineIndex))
       .observe(index => this.setState({ activeElement: index }));
 
-    mouseDown
-      .map(ev => [ev.pageX, ev.pageY])
+    const edit = mouseDown
+      .filter(({ target }) => target.matches(".Editor__point"))
 
+      .tap(ev => ev.preventDefault())
+      .tap(ev => ev.stopPropagation())
+
+      .map(({ target }) => target.dataset)
+      .map(({ lineIndex, pointIndex }) => ({
+        lineIndex: Number(lineIndex),
+        pointIndex: Number(pointIndex)
+      }))
+
+      .chain(({ lineIndex, pointIndex }) => {
+        const line = this.state.lines[lineIndex];
+
+        return mouseMove.until(mouseUp).map(({ pageX, pageY }) => ({
+          line: update(pointIndex, [pageX, pageY], line),
+          activeElement: lineIndex
+        }));
+      });
+
+    const create = mouseDown
+      .filter(({ target }) => target.matches(".Editor"))
+      .map(ev => [ev.pageX, ev.pageY])
       .chain(p1 => {
         const index = this.state.lines.length;
         return mouseMove
@@ -52,37 +72,21 @@ class Editor extends Component {
           .map(({ pageX, pageY }) => ({
             line: [p1, [pageX, pageY]],
             activeElement: index
-          }))
-      })
-
-      .observe(({line, activeElement}) => {
-
-        this.setState(({ lines }) => {
-          if (!lines[activeElement]) {
-            return this.setState({
-              activeElement: activeElement,
-              lines: append(line, lines)
-            })
-          } else {
-            return ({
-              activeElement: activeElement,
-              lines: update(activeElement, line, lines)
-            })
-          }
-
-        });
+          }));
       });
-    return mouseMove.until(mouseUp);
+
+    merge(edit, create).observe(({ line, activeElement }) =>
+      this.setState(({ lines }) => ({
+        activeElement,
+        lines: !lines[activeElement]
+          ? append(line, lines)
+          : update(activeElement, line, lines)
+      }))
+    );
   }
 
   render() {
     const { lines, activeElement } = this.state;
-
-    let p1, p2;
-
-    if (lines[activeElement]) {
-      [p1, p2] = lines[activeElement];
-    }
 
     return (
       <svg ref="root" className={b()}>
@@ -90,8 +94,8 @@ class Editor extends Component {
           ([p1, p2], i) =>
             i !== activeElement ? (
               <line
-                data-index={i}
                 key={i}
+                data-line-index={i}
                 className={b("line")}
                 x1={p1[0]}
                 x2={p2[0]}
@@ -99,23 +103,33 @@ class Editor extends Component {
                 y2={p2[1]}
               />
             ) : (
-              undefined
+              <g key={i}>
+                <line
+                  data-line-index={i}
+                  className={b("line", ["active"])}
+                  x1={p1[0]}
+                  x2={p2[0]}
+                  y1={p1[1]}
+                  y2={p2[1]}
+                />
+                <circle
+                  data-line-index={i}
+                  data-point-index={0}
+                  className={b("point")}
+                  cx={p1[0]}
+                  cy={p1[1]}
+                  r={4}
+                />
+                <circle
+                  data-line-index={i}
+                  data-point-index={1}
+                  className={b("point")}
+                  cx={p2[0]}
+                  cy={p2[1]}
+                  r={4}
+                />
+              </g>
             )
-        )}
-
-        {lines[activeElement] && (
-          <g>
-            <line
-              data-index={activeElement}
-              className={b("line", ["active"])}
-              x1={p1[0]}
-              x2={p2[0]}
-              y1={p1[1]}
-              y2={p2[1]}
-            />
-            <circle className={b("point")} cx={p1[0]} cy={p1[1]} r={5} />
-            <circle className={b("point")} cx={p2[0]} cy={p2[1]} r={5} />
-          </g>
         )}
       </svg>
     );
